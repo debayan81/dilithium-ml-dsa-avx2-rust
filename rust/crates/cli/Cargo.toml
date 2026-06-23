@@ -1,0 +1,21 @@
+[package]
+name = "cli"
+version = "0.1.0"
+description = "CLI tool for testing the Dilithium post-quantum signature scheme"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Link the local workspace member and explicitly select a parameter set.
+#
+# IMPORTANT: this MUST match the parameter set the `dilithium` crate resolves
+# to in a workspace build. The dilithium2/3/5 features are mutually exclusive
+# (build.rs panics if more than one is active), but Cargo *unifies* features
+# across the workspace. Since `dilithium`'s own `default` enables `dilithium3`,
+# selecting any other set here (e.g. dilithium5) would unify to two sets at
+# once and make `cargo build --workspace` panic. So we pick `dilithium3` to
+# agree with the default. To build a different set, change `dilithium`'s
+# default and this line together, or build a single crate with explicit flags:
+#   cargo build -p dilithium --no-default-features --features dilithium5
+dilithium = { path = "../dilithium", default-features = false, features = ["dilithium3"] }

@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/dilithium",
+    "crates/cli",
+]
+
+[workspace.package]
+edition = "2021"
+authors = ["Dilithium Rust Port Contributors"]
+license = "CC0-1.0"
+
+# Maps Makefile CFLAGS: -O3 -fomit-frame-pointer
+[profile.release]
+opt-level = 3
+lto = true
+strip = "symbols"
+
+[profile.dev]
+opt-level = 0

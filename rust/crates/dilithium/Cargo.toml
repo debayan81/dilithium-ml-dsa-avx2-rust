@@ -1,0 +1,47 @@
+[package]
+name = "dilithium"
+version = "0.1.0"
+description = "A Rust implementation of the Dilithium post-quantum signature scheme"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+# Produces both a Rust library (rlib) and a C-compatible shared library (.so/.dll).
+# The cdylib target mirrors the Makefile's shared lib targets:
+#   libpqcrystals_dilithium2_ref.so, libpqcrystals_dilithium3_ref.so, etc.
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[features]
+# NIST recommends Dilithium3 for general use.
+# randomized-signing is ON by default (matches C config.h where
+# DILITHIUM_RANDOMIZED_SIGNING is #defined).
+default = ["dilithium3", "randomized-signing"]
+
+# Dilithium parameter sets — maps Makefile's -DDILITHIUM_MODE=2/3/5.
+# Exactly one must be enabled at compile time (enforced by build.rs).
+dilithium2 = []
+dilithium3 = []
+dilithium5 = []
+
+# Maps C's DILITHIUM_RANDOMIZED_SIGNING macro (config.h L5).
+# When enabled: signing uses fresh random bytes (randombytes()).
+# When disabled: signing uses rnd = [0; RNDBYTES] (deterministic).
+randomized-signing = []
+
+# AVX2-optimized backend — maps Makefile's -mavx2 -mpopcnt -march=native flags.
+# When enabled, build.rs uses the `cc` crate to compile and link the AVX2
+# assembly files: ntt.S, invntt.S, pointwise.S, shuffle.S, f1600x4.S
+# Only meaningful on x86_64 CPUs with AVX2 support.
+avx2 = ["dep:cc"]
+
+[dependencies]
+# T-017: FIPS 202 (SHAKE128/256, SHA3-256/512). We wrap the audited RustCrypto
+# implementation instead of hand-porting the Keccak permutation.
+sha3 = "0.10"
+# getrandom = "0.2"    # T-025: System RNG
+
+[build-dependencies]
+# Used by build.rs to compile AVX2 .S assembly files when the avx2 feature
+# is enabled. Maps the Makefile's role of directly invoking cc with -mavx2.
+cc = { version = "1.0", optional = true }
