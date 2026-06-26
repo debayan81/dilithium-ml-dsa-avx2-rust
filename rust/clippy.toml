@@ -1,0 +1,5 @@
+# Clippy configuration (T-096).
+#
+# Minimum supported Rust version. The build script uses the `cargo::` directive
+# syntax stabilized in 1.77, so that is the floor.
+msrv = "1.77"

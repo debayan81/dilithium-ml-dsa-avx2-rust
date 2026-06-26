@@ -1,0 +1,5 @@
+# Formatting configuration (T-096). Stable-only options so `cargo fmt` works on
+# the stable toolchain without warnings.
+edition = "2021"
+max_width = 100
+use_field_init_shorthand = true

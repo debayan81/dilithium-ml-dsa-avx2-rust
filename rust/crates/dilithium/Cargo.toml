@@ -5,6 +5,34 @@ description = "A Rust implementation of the Dilithium post-quantum signature sch
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+readme = "README.md"
+repository = "https://github.com/pq-crystals/dilithium"
+keywords = ["cryptography", "post-quantum", "signature", "dilithium", "lattice"]
+categories = ["cryptography", "no-std"]
+
+# Parameter-set metadata migrated from the *_META.yml files (T-082..T-085).
+# `testvectors-sha256` is the SHA-256 of the reference `test_vectors` output and
+# is validated byte-for-byte by the T-061 integration test.
+[package.metadata.dilithium.dilithium2]
+nist-level = 2
+public-key-bytes = 1312
+secret-key-bytes = 2560
+signature-bytes = 2420
+testvectors-sha256 = "5f0d135c0f7fd43f3fb9727265fcd6ec3651eb8c67c04ea5f3d8dfa1d99740d2"
+
+[package.metadata.dilithium.dilithium3]
+nist-level = 3
+public-key-bytes = 1952
+secret-key-bytes = 4032
+signature-bytes = 3309
+testvectors-sha256 = "14bf84918ee90e7afbd580191d3eb890d4557e0900b1145e39a8399ef7dd3fba"
+
+[package.metadata.dilithium.dilithium5]
+nist-level = 5
+public-key-bytes = 2592
+secret-key-bytes = 4896
+signature-bytes = 4627
+testvectors-sha256 = "759a3ba35210c7e27ff90a7ce5e399295533b82ef125e6ec98af158e00268e44"
 
 # Produces both a Rust library (rlib) and a C-compatible shared library (.so/.dll).
 # The cdylib target mirrors the Makefile's shared lib targets:
@@ -35,13 +63,48 @@ randomized-signing = []
 # Only meaningful on x86_64 CPUs with AVX2 support.
 avx2 = ["dep:cc"]
 
+# NIST KAT support (T-076/T-077): the AES-256-CTR DRBG used to deterministically
+# generate Known Answer Test vectors. Off by default so the AES dependency is
+# only pulled in for KAT generation/validation.
+nistkat = ["dep:aes"]
+
+# Interop testing (T-094): compile and link the reference `ref/` C via build.rs
+# so the interop test can cross-verify Rust <-> C signatures. Requires a C
+# toolchain. Off by default.
+interop = ["dep:cc"]
+
 [dependencies]
 # T-017: FIPS 202 (SHAKE128/256, SHA3-256/512). We wrap the audited RustCrypto
 # implementation instead of hand-porting the Keccak permutation.
 sha3 = "0.10"
-# getrandom = "0.2"    # T-025: System RNG
+# T-025: system RNG, replacing the C `randombytes()`.
+getrandom = "0.2"
+# T-098: constant-time equality for the verification challenge comparison.
+subtle = "2.5"
+# T-077: AES-256 for the NIST CTR_DRBG (only with the `nistkat` feature).
+aes = { version = "0.8", optional = true }
+
+[dev-dependencies]
+# T-061/T-095: SHA-256 to digest generated vectors and compare to golden hashes.
+sha2 = "0.10"
+# T-063: benchmarking harness (replaces test_speed.c / cpucycles).
+criterion = "0.5"
+
+# T-063..T-067: performance benchmarks (keypair/sign/verify + internal ops).
+[[bench]]
+name = "bench_dilithium"
+harness = false
 
 [build-dependencies]
 # Used by build.rs to compile AVX2 .S assembly files when the avx2 feature
 # is enabled. Maps the Makefile's role of directly invoking cc with -mavx2.
 cc = { version = "1.0", optional = true }
+
+# Lint policy (T-096/T-097/T-098).
+[lints.rust]
+# The reference port is 100% safe Rust; enforce that no `unsafe` creeps in.
+# (Override locally with `#[allow(unsafe_code)]` if the AVX2 backend ever needs
+# intrinsics — see T-030+.)
+unsafe_code = "deny"
+# Every public item must be documented (T-099).
+missing_docs = "warn"

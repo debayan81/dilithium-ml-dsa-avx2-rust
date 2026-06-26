@@ -7,3 +7,12 @@ PQCsignKAT_Dilithium5.rsp
 tvecs2
 tvecs3
 tvecs5
+
+# Rust build artifacts (the port lives under rust/)
+/rust/target/
+**/*.rs.bk
+*.pdb
+
+# C build artifacts (consolidated from ref/.gitignore and avx2/.gitignore)
+*.o
+*.so

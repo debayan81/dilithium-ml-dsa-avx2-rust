@@ -49,11 +49,23 @@ pub fn decompose(a: i32) -> (i32, i32) {
 /// Hint bit: whether the low bits `a0` overflow into the high bits.
 ///
 /// Returns `true` (i.e. C's `1`) on overflow. Port of `make_hint`.
-// Kept as explicit comparisons to mirror the C reference one-to-one rather
-// than a `RangeInclusive::contains`, which would obscure the exact condition.
-#[allow(clippy::manual_range_contains)]
+///
+/// Branchless equivalent of the C condition
+/// `a0 > GAMMA2 || a0 < -GAMMA2 || (a0 == -GAMMA2 && a1 != 0)`. During signing
+/// this runs on secret-derived `(a0, a1)` on every (including rejected)
+/// attempt, so we compute it without data-dependent branches (T-098). See
+/// `CONSTANT_TIME_AUDIT.md`.
 pub fn make_hint(a0: i32, a1: i32) -> bool {
-    a0 > GAMMA2 || a0 < -GAMMA2 || (a0 == -GAMMA2 && a1 != 0)
+    // gt = 1 iff a0 > GAMMA2  (GAMMA2 - a0 is negative).
+    let gt = (GAMMA2.wrapping_sub(a0) >> 31) & 1;
+    // diff == 0 iff a0 == -GAMMA2; diff < 0 iff a0 < -GAMMA2.
+    let diff = a0.wrapping_add(GAMMA2);
+    let lt = (diff >> 31) & 1;
+    // is_eq = 1 iff diff == 0 (i.e. a0 == -GAMMA2).
+    let is_eq = (((diff | diff.wrapping_neg()) >> 31) & 1) ^ 1;
+    // a1_nz = 1 iff a1 != 0.
+    let a1_nz = ((a1 | a1.wrapping_neg()) >> 31) & 1;
+    (gt | lt | (is_eq & a1_nz)) != 0
 }
 
 /// Correct the high bits of `a` according to `hint`.
@@ -112,7 +124,10 @@ mod tests {
         for a in samples() {
             let (a1, a0) = power2round(a);
             assert_eq!(a1 * (1 << D) + a0, a, "power2round reconstruction at {a}");
-            assert!(a0 > -half && a0 <= half, "power2round a0 out of range at {a}");
+            assert!(
+                a0 > -half && a0 <= half,
+                "power2round a0 out of range at {a}"
+            );
         }
     }
 
@@ -124,8 +139,14 @@ mod tests {
             // a1*ALPHA + a0 ≡ a (mod Q)
             let recon = (a1 as i64 * alpha as i64 + a0 as i64).rem_euclid(Q as i64);
             assert_eq!(recon, a as i64, "decompose reconstruction at {a}");
-            assert!(a0 > -GAMMA2 && a0 <= GAMMA2, "decompose a0 out of range at {a}");
-            assert!((0..=A1_MAX).contains(&a1), "decompose a1 out of range at {a}");
+            assert!(
+                a0 > -GAMMA2 && a0 <= GAMMA2,
+                "decompose a0 out of range at {a}"
+            );
+            assert!(
+                (0..=A1_MAX).contains(&a1),
+                "decompose a1 out of range at {a}"
+            );
         }
     }
 
@@ -144,7 +165,11 @@ mod tests {
     fn use_hint_zero_is_high_bits_and_in_range() {
         for a in samples() {
             let (a1, _) = decompose(a);
-            assert_eq!(use_hint(a, false), a1, "use_hint(_,0) must equal high bits at {a}");
+            assert_eq!(
+                use_hint(a, false),
+                a1,
+                "use_hint(_,0) must equal high bits at {a}"
+            );
             let corrected = use_hint(a, true);
             assert!((0..=A1_MAX).contains(&corrected), "use_hint range at {a}");
         }

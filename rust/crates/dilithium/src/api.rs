@@ -72,44 +72,38 @@ impl std::error::Error for Error {}
 
 /// Generate a new key pair using the system RNG.
 ///
-/// Rust equivalent of `crypto_sign_keypair(pk, sk)`. The randomness source is
-/// wired up in T-025 (`src/randombytes.rs`).
-#[allow(unused_variables)]
+/// Rust equivalent of `crypto_sign_keypair(pk, sk)`.
 pub fn keypair() -> (PublicKey, SecretKey) {
-    todo!("T-023: keypair generation (src/sign.rs)")
+    crate::sign::keypair()
 }
 
 /// Produce a detached signature over `msg` with application context `ctx`.
 ///
 /// Rust equivalent of `crypto_sign_signature(sig, siglen, m, mlen, ctx,
 /// ctxlen, sk)`. Returns [`Error::ContextTooLong`] if `ctx.len() > CTX_MAX`.
-#[allow(unused_variables)]
 pub fn sign(msg: &[u8], ctx: &[u8], sk: &SecretKey) -> Result<Signature, Error> {
-    todo!("T-023: detached signing (src/sign.rs)")
+    crate::sign::signature(msg, ctx, sk)
 }
 
 /// Verify a detached signature `sig` over `msg` with context `ctx`.
 ///
 /// Rust equivalent of `crypto_sign_verify(...)`. Returns `Ok(())` when the
 /// signature is valid and [`Error::InvalidSignature`] otherwise.
-#[allow(unused_variables)]
 pub fn verify(sig: &Signature, msg: &[u8], ctx: &[u8], pk: &PublicKey) -> Result<(), Error> {
-    todo!("T-023: detached verification (src/sign.rs)")
+    crate::sign::verify(sig, msg, ctx, pk)
 }
 
 /// Produce an attached signed message (`sig ‖ msg`).
 ///
 /// Rust equivalent of `crypto_sign(sm, smlen, m, mlen, ctx, ctxlen, sk)`.
-#[allow(unused_variables)]
 pub fn sign_attached(msg: &[u8], ctx: &[u8], sk: &SecretKey) -> Result<Vec<u8>, Error> {
-    todo!("T-023: attached signing (src/sign.rs)")
+    crate::sign::sign_message(msg, ctx, sk)
 }
 
 /// Verify an attached signed message `sm` and recover the original message.
 ///
 /// Rust equivalent of `crypto_sign_open(m, mlen, sm, smlen, ctx, ctxlen, pk)`.
 /// Returns the recovered message on success.
-#[allow(unused_variables)]
 pub fn open(sm: &[u8], ctx: &[u8], pk: &PublicKey) -> Result<Vec<u8>, Error> {
-    todo!("T-023: attached verification / open (src/sign.rs)")
+    crate::sign::open(sm, ctx, pk)
 }

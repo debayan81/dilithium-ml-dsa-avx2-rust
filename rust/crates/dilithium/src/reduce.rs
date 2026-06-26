@@ -77,7 +77,18 @@ mod tests {
 
     #[test]
     fn freeze_is_canonical_and_congruent() {
-        for &a in &[0, 1, -1, Q, -Q, Q - 1, -(Q - 1), 123_456, -123_456, 6_283_008] {
+        for &a in &[
+            0,
+            1,
+            -1,
+            Q,
+            -Q,
+            Q - 1,
+            -(Q - 1),
+            123_456,
+            -123_456,
+            6_283_008,
+        ] {
             let r = freeze(a);
             assert!((0..Q).contains(&r), "freeze({a}) = {r} out of [0,Q)");
             assert_eq!(r as i64, modq(a as i64), "freeze({a}) wrong residue");
@@ -87,10 +98,23 @@ mod tests {
     #[test]
     fn reduce32_in_bound_and_congruent() {
         // Upper end of the documented input domain: 2^31 - 2^22 - 1.
-        for &a in &[0, 1, -1, Q, -Q, 12_345_678, -12_345_678, i32::MAX - (1 << 22)] {
+        for &a in &[
+            0,
+            1,
+            -1,
+            Q,
+            -Q,
+            12_345_678,
+            -12_345_678,
+            i32::MAX - (1 << 22),
+        ] {
             let r = reduce32(a);
             assert!(r.abs() <= 6_283_008, "reduce32({a}) = {r} out of bound");
-            assert_eq!(modq(r as i64), modq(a as i64), "reduce32({a}) wrong residue");
+            assert_eq!(
+                modq(r as i64),
+                modq(a as i64),
+                "reduce32({a}) wrong residue"
+            );
         }
     }
 
@@ -98,9 +122,21 @@ mod tests {
     fn montgomery_reduce_matches_definition() {
         // r ≡ a·2^{-32} (mod Q)  <=>  r·2^32 ≡ a (mod Q), and -Q < r < Q.
         let two32 = 1i64 << 32;
-        for &a in &[0i64, 1, -1, QI64, -QI64, QI64 << 20, -(QI64 << 20), 1_234_567_890_123] {
+        for &a in &[
+            0i64,
+            1,
+            -1,
+            QI64,
+            -QI64,
+            QI64 << 20,
+            -(QI64 << 20),
+            1_234_567_890_123,
+        ] {
             let r = montgomery_reduce(a);
-            assert!((r as i64) > -QI64 && (r as i64) < QI64, "mont({a}) = {r} out of range");
+            assert!(
+                (r as i64) > -QI64 && (r as i64) < QI64,
+                "mont({a}) = {r} out of range"
+            );
             assert_eq!(modq(r as i64 * two32), modq(a), "mont({a}) wrong residue");
         }
     }

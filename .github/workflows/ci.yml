@@ -1,0 +1,76 @@
+# Continuous integration for the Rust port (T-086 / T-088).
+#
+# Replaces the C project's runtests.sh + .travis.yml: builds and tests the Rust
+# crate across all three parameter sets, enforces formatting/lints, and runs the
+# byte-for-byte golden validation against the C reference test vectors.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+defaults:
+  run:
+    working-directory: rust
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: clippy (${{ matrix.set }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        set: [dilithium2, dilithium3, dilithium5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: >
+          cargo clippy -p dilithium --no-default-features
+          --features "${{ matrix.set }} nistkat" --all-targets -- -D warnings
+
+  test:
+    name: test (${{ matrix.set }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        set: [dilithium2, dilithium3, dilithium5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Unit + integration tests (incl. NIST KAT self-check + Rust<->C interop)
+        run: cargo test -p dilithium --no-default-features --features "${{ matrix.set }} nistkat interop"
+      - name: Golden test_vectors vs C reference (SHA256SUMS)
+        run: >
+          cargo test -p dilithium --release --no-default-features
+          --features ${{ matrix.set }} --test test_vectors -- --ignored
+
+  build-doc:
+    name: build + doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build workspace (default features) + CLI
+        run: cargo build --workspace
+      - name: Doc (deny broken intra-doc links)
+        run: cargo doc -p dilithium --no-deps
+        env:
+          RUSTDOCFLAGS: "-D warnings"

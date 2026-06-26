@@ -1,4 +1,6 @@
 // Build script for the Dilithium crate.
+// (Build scripts aren't part of the public API; missing_docs doesn't apply.)
+#![allow(missing_docs)]
 //
 // Responsibilities (mirrors what the Makefiles did):
 //
@@ -43,6 +45,48 @@ fn main() {
              The C Makefile compiles each mode as a separate binary; \
              in Rust we enforce mutual exclusivity via this build script."
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // T-094: Compile and link the reference `ref/` C for the interop test.
+    //
+    // We compile every ref/ source EXCEPT randombytes.c; the interop test
+    // provides a `randombytes` symbol from Rust, so the C reference is
+    // deterministic and needs no platform RNG. Symbols are namespaced
+    // pqcrystals_dilithium{2,3,5}_ref_* via -DDILITHIUM_MODE.
+    // -----------------------------------------------------------------------
+    #[cfg(feature = "interop")]
+    {
+        let mode = if d2 {
+            2
+        } else if d5 {
+            5
+        } else {
+            3
+        };
+        let ref_src = "../../../ref";
+        let sources = [
+            "sign.c",
+            "packing.c",
+            "polyvec.c",
+            "poly.c",
+            "ntt.c",
+            "reduce.c",
+            "rounding.c",
+            "fips202.c",
+            "symmetric-shake.c",
+        ];
+        let mut build = cc::Build::new();
+        build.include(ref_src);
+        build.define("DILITHIUM_MODE", mode.to_string().as_str());
+        build.opt_level(2);
+        for src in &sources {
+            let path = format!("{}/{}", ref_src, src);
+            build.file(&path);
+            println!("cargo::rerun-if-changed={}", path);
+        }
+        build.compile("dilithium_ref_c");
+        println!("cargo::rustc-link-lib=static=dilithium_ref_c");
     }
 
     // -----------------------------------------------------------------------
@@ -117,7 +161,13 @@ fn main() {
         // Mirror the Makefile's `-DDILITHIUM_MODE=2/3/5`. The assembly expands
         // DILITHIUM_NAMESPACE(...) from this; without it the `ntt_avx` etc.
         // symbols never get their namespaced names.
-        let dilithium_mode = if d2 { 2 } else if d5 { 5 } else { 3 };
+        let dilithium_mode = if d2 {
+            2
+        } else if d5 {
+            5
+        } else {
+            3
+        };
         build.define("DILITHIUM_MODE", dilithium_mode.to_string().as_str());
 
         for src in asm_files.iter().chain(c_files.iter()) {

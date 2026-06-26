@@ -29,6 +29,7 @@ use crate::symmetric::{self, STREAM128_BLOCKBYTES, STREAM256_BLOCKBYTES};
 /// A polynomial: `N` signed coefficients. Port of the C `poly` struct.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Poly {
+    /// The `N` signed coefficients of the polynomial.
     pub coeffs: [i32; N],
 }
 
@@ -155,20 +156,27 @@ impl Poly {
     /// Returns `true` if `‖self‖∞ >= bound` (or `bound > (Q-1)/8`), matching
     /// the C convention where `1` means "rejected". Assumes coefficients were
     /// reduced by [`reduce`](Self::reduce). Port of `poly_chknorm`.
+    ///
+    /// Fully constant-time over the coefficients (T-098): `bound` is a public
+    /// constant, the absolute value is computed branchlessly (never leaking the
+    /// sign of the centered representative), and the per-coefficient result is
+    /// accumulated without early exit — so we leak neither the sign nor *which*
+    /// coefficient violates the bound, only the final yes/no (the return value
+    /// itself). The C reference early-returns and documents the index leak as
+    /// acceptable; we tighten it here. See `CONSTANT_TIME_AUDIT.md`.
     pub fn chknorm(&self, bound: i32) -> bool {
         if bound > (Q - 1) / 8 {
             return true;
         }
-        // Constant-time absolute value; we may leak *which* coefficient fails
-        // (data-independent) but not the sign of the centered representative.
+        let mut bad: i32 = 0;
         for i in 0..N {
-            let t = self.coeffs[i] >> 31;
-            let t = self.coeffs[i] - (t & self.coeffs[i].wrapping_mul(2));
-            if t >= bound {
-                return true;
-            }
+            // Branchless absolute value of the centered representative.
+            let s = self.coeffs[i] >> 31;
+            let t = self.coeffs[i] - (s & self.coeffs[i].wrapping_mul(2));
+            // (bound-1 - t) is negative exactly when t >= bound.
+            bad |= ((bound - 1).wrapping_sub(t) >> 31) & 1;
         }
-        false
+        bad != 0
     }
 
     // ---- sampling ---------------------------------------------------------
@@ -527,12 +535,12 @@ fn rej_eta(a: &mut [i32], buf: &[u8]) -> usize {
         {
             // ETA == 2
             if t0 < 15 {
-                let t0 = t0 - (205 * t0 >> 10) * 5;
+                let t0 = t0 - ((205 * t0) >> 10) * 5;
                 a[ctr] = 2 - t0 as i32;
                 ctr += 1;
             }
             if t1 < 15 && ctr < len {
-                let t1 = t1 - (205 * t1 >> 10) * 5;
+                let t1 = t1 - ((205 * t1) >> 10) * 5;
                 a[ctr] = 2 - t1 as i32;
                 ctr += 1;
             }
@@ -590,7 +598,10 @@ mod tests {
     #[test]
     fn uniform_gamma1_in_range() {
         let a = Poly::uniform_gamma1(&seed64(), 9);
-        assert!(a.coeffs.iter().all(|&c| (-(GAMMA1 - 1)..=GAMMA1).contains(&c)));
+        assert!(a
+            .coeffs
+            .iter()
+            .all(|&c| (-(GAMMA1 - 1)..=GAMMA1).contains(&c)));
     }
 
     #[test]

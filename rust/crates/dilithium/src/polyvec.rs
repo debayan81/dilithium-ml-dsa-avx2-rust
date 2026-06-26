@@ -18,24 +18,30 @@ use crate::poly::Poly;
 /// Vector of `L` polynomials. Port of the C `polyvecl` struct.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Polyvecl {
+    /// The `L` polynomials of the vector.
     pub vec: [Poly; L],
 }
 
 /// Vector of `K` polynomials. Port of the C `polyveck` struct.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Polyveck {
+    /// The `K` polynomials of the vector.
     pub vec: [Poly; K],
 }
 
 impl Default for Polyvecl {
     fn default() -> Self {
-        Polyvecl { vec: [Poly::default(); L] }
+        Polyvecl {
+            vec: [Poly::default(); L],
+        }
     }
 }
 
 impl Default for Polyveck {
     fn default() -> Self {
-        Polyveck { vec: [Poly::default(); K] }
+        Polyveck {
+            vec: [Poly::default(); K],
+        }
     }
 }
 
@@ -144,8 +150,15 @@ impl Polyvecl {
 
     /// `true` if any entry's infinity norm reaches `bound`.
     /// Port of `polyvecl_chknorm`.
+    ///
+    /// Accumulated without short-circuiting so the per-polynomial timing does
+    /// not reveal which entry violates the bound (T-098).
     pub fn chknorm(&self, bound: i32) -> bool {
-        self.vec.iter().any(|p| p.chknorm(bound))
+        let mut bad = false;
+        for p in self.vec.iter() {
+            bad |= p.chknorm(bound);
+        }
+        bad
     }
 }
 
@@ -229,8 +242,14 @@ impl Polyveck {
 
     /// `true` if any entry's infinity norm reaches `bound`.
     /// Port of `polyveck_chknorm`.
+    ///
+    /// Accumulated without short-circuiting (see [`Polyvecl::chknorm`]; T-098).
     pub fn chknorm(&self, bound: i32) -> bool {
-        self.vec.iter().any(|p| p.chknorm(bound))
+        let mut bad = false;
+        for p in self.vec.iter() {
+            bad |= p.chknorm(bound);
+        }
+        bad
     }
 
     /// Split every entry into `(v1, v0)` via `power2round`.
@@ -339,8 +358,14 @@ mod tests {
     fn uniform_eta_vectors_in_range() {
         let l = Polyvecl::uniform_eta(&crh(), 0);
         let k = Polyveck::uniform_eta(&crh(), 100);
-        assert!(l.vec.iter().all(|p| p.coeffs.iter().all(|&c| (-ETA..=ETA).contains(&c))));
-        assert!(k.vec.iter().all(|p| p.coeffs.iter().all(|&c| (-ETA..=ETA).contains(&c))));
+        assert!(l
+            .vec
+            .iter()
+            .all(|p| p.coeffs.iter().all(|&c| (-ETA..=ETA).contains(&c))));
+        assert!(k
+            .vec
+            .iter()
+            .all(|p| p.coeffs.iter().all(|&c| (-ETA..=ETA).contains(&c))));
     }
 
     #[test]
@@ -368,7 +393,11 @@ mod tests {
         w.invntt_tomont();
 
         for i in 0..N {
-            assert_eq!(freeze(w.coeffs[i]), freeze(acc.coeffs[i]), "mismatch at coeff {i}");
+            assert_eq!(
+                freeze(w.coeffs[i]),
+                freeze(acc.coeffs[i]),
+                "mismatch at coeff {i}"
+            );
         }
     }
 
@@ -396,8 +425,8 @@ mod tests {
         let (v1, v0) = v.decompose();
         for i in 0..K {
             for j in 0..N {
-                let recon =
-                    (v1.vec[i].coeffs[j] as i64 * alpha + v0.vec[i].coeffs[j] as i64).rem_euclid(QI64);
+                let recon = (v1.vec[i].coeffs[j] as i64 * alpha + v0.vec[i].coeffs[j] as i64)
+                    .rem_euclid(QI64);
                 assert_eq!(recon, v.vec[i].coeffs[j] as i64);
             }
         }

@@ -2,7 +2,7 @@
 //!
 //! Rust port of `ref/fips202.c` and `ref/fips202.h` (T-017 / T-018).
 //!
-//! Rather than hand-porting the Keccak-f[1600] permutation, this wraps the
+//! Rather than hand-porting the `Keccak-f[1600]` permutation, this wraps the
 //! audited [`sha3`] crate. The C reference exposes an incremental
 //! init/absorb/finalize/squeezeblocks API over a `keccak_state`; Dilithium only
 //! ever uses the "absorb everything once, then squeeze blocks" pattern, so the
@@ -35,13 +35,21 @@ impl Shake128Stream {
     pub fn init_absorb(input: &[u8]) -> Self {
         let mut h = Shake128::default();
         h.update(input);
-        Self { reader: h.finalize_xof() }
+        Self {
+            reader: h.finalize_xof(),
+        }
     }
 
     /// Squeeze `nblocks` × [`SHAKE128_RATE`] bytes into the front of `out`.
     /// Mirrors `shake128_squeezeblocks`.
     pub fn squeezeblocks(&mut self, out: &mut [u8], nblocks: usize) {
         self.reader.read(&mut out[..nblocks * SHAKE128_RATE]);
+    }
+
+    /// Squeeze exactly `out.len()` bytes, continuing the stream.
+    /// Mirrors `shake128_squeeze`.
+    pub fn squeeze(&mut self, out: &mut [u8]) {
+        self.reader.read(out);
     }
 }
 
@@ -57,7 +65,9 @@ impl Shake256Stream {
     pub fn init_absorb(input: &[u8]) -> Self {
         let mut h = Shake256::default();
         h.update(input);
-        Self { reader: h.finalize_xof() }
+        Self {
+            reader: h.finalize_xof(),
+        }
     }
 
     /// Squeeze `nblocks` × [`SHAKE256_RATE`] bytes into the front of `out`.

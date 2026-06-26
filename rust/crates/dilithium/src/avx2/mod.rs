@@ -14,7 +14,7 @@
 //! - `invntt.S`    — AVX2 inverse NTT (T-031)
 //! - `pointwise.S` — AVX2 pointwise Montgomery multiplication (T-032)
 //! - `shuffle.S`   — AVX2 NTT shuffle/transpose routines (T-033)
-//! - `f1600x4.S`   — 4-way parallel Keccak-f[1600] (T-035)
+//! - `f1600x4.S`   — 4-way parallel `Keccak-f[1600]` (T-035)
 //!
 //! # Sub-modules (to be implemented in later tasks)
 //! - `consts`    — AVX2-aligned constant tables (T-027)
@@ -44,4 +44,3 @@
 //   pub mod poly;      // T-041: Polynomial operations
 //   pub mod polyvec;   // T-043: Polynomial vector operations
 //   pub mod sign;      // T-047: Signing implementation
-

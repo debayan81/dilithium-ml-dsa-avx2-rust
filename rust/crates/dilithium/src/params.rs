@@ -125,6 +125,7 @@ pub const POLYVECH_PACKEDBYTES: usize = OMEGA + K;
 /// `GAMMA1 == 2^17` → 18 bits/coeff → 576; `GAMMA1 == 2^19` → 20 bits → 640.
 #[cfg(feature = "dilithium2")]
 pub const POLYZ_PACKEDBYTES: usize = 576;
+/// Packed size of a `z` polynomial (`GAMMA1 == 2^19` → 20 bits/coeff → 640).
 #[cfg(any(feature = "dilithium3", feature = "dilithium5"))]
 pub const POLYZ_PACKEDBYTES: usize = 640;
 
@@ -132,6 +133,7 @@ pub const POLYZ_PACKEDBYTES: usize = 640;
 /// `GAMMA2 == (Q-1)/88` → 6 bits/coeff → 192; `(Q-1)/32` → 4 bits → 128.
 #[cfg(feature = "dilithium2")]
 pub const POLYW1_PACKEDBYTES: usize = 192;
+/// Packed size of a `w1` polynomial (`GAMMA2 == (Q-1)/32` → 4 bits/coeff → 128).
 #[cfg(any(feature = "dilithium3", feature = "dilithium5"))]
 pub const POLYW1_PACKEDBYTES: usize = 128;
 
@@ -139,6 +141,7 @@ pub const POLYW1_PACKEDBYTES: usize = 128;
 /// `ETA == 2` → 3 bits/coeff → 96; `ETA == 4` → 4 bits → 128.
 #[cfg(any(feature = "dilithium2", feature = "dilithium5"))]
 pub const POLYETA_PACKEDBYTES: usize = 96;
+/// Packed size of an `eta` polynomial (`ETA == 4` → 4 bits/coeff → 128).
 #[cfg(feature = "dilithium3")]
 pub const POLYETA_PACKEDBYTES: usize = 128;
 

@@ -23,9 +23,11 @@
 #[cfg(feature = "dilithium2")]
 pub const DILITHIUM_MODE: u8 = 2;
 
+/// The active Dilithium mode as a numeric constant (maps `DILITHIUM_MODE`).
 #[cfg(feature = "dilithium3")]
 pub const DILITHIUM_MODE: u8 = 3;
 
+/// The active Dilithium mode as a numeric constant (maps `DILITHIUM_MODE`).
 #[cfg(feature = "dilithium5")]
 pub const DILITHIUM_MODE: u8 = 5;
 
@@ -37,9 +39,11 @@ pub const DILITHIUM_MODE: u8 = 5;
 #[cfg(feature = "dilithium2")]
 pub const CRYPTO_ALGNAME: &str = "Dilithium2";
 
+/// Algorithm name string, matching the C `CRYPTO_ALGNAME` macro.
 #[cfg(feature = "dilithium3")]
 pub const CRYPTO_ALGNAME: &str = "Dilithium3";
 
+/// Algorithm name string, matching the C `CRYPTO_ALGNAME` macro.
 #[cfg(feature = "dilithium5")]
 pub const CRYPTO_ALGNAME: &str = "Dilithium5";
 
