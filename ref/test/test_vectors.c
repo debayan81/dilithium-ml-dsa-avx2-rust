@@ -10,7 +10,7 @@
 #include "../polyvec.h"
 #include "../packing.h"
 
-#define MLEN 32
+#define MLEN 256      /* buffer capacity for the manually-entered message */
 #define CTXLEN 13
 #define NVECTORS 10000
 
@@ -32,59 +32,87 @@ int main(void) {
   uint8_t seed[CRHBYTES];
   uint8_t buf[CRYPTO_SECRETKEYBYTES];
   size_t siglen;
+  size_t mlen;
   poly c, tmp;
   polyvecl s, y, mat[K];
   polyveck w, w1, w0, t1, t0, h;
 
   snprintf((char*)ctx,CTXLEN,"test_vectors");
 
-  for(i = 0; i < NVECTORS; ++i) {
-    printf("count = %u\n", i);
+  /* Read the message to sign from the terminal once. The actual number of
+     characters typed becomes the message length used for sign/verify. */
+  printf("Enter message to sign: ");
+  fflush(stdout);
+  if(!fgets((char*)m, MLEN, stdin)) {
+    fprintf(stderr, "Failed to read message\n");
+    return -1;
+  }
+  mlen = strlen((char*)m);
+  if(mlen > 0 && m[mlen-1] == '\n')  /* strip trailing newline */
+    m[--mlen] = 0;
+  printf("Message length = %zu bytes\n\n", mlen);
 
-    randombytes(m, MLEN);
-    printf("m = ");
-    for(j = 0; j < MLEN; ++j)
-      printf("%02x", m[j]);
-    printf("\n");
+  for(i = 0; i < NVECTORS; ++i) {
+    /* The internal self-tests below run every iteration (fuzz coverage over
+       NVECTORS deterministic inputs); only the first iteration prints its
+       full vector dump so the output stays readable. */
+    const int verbose = (i == 0);
+
+    if(verbose) {
+      printf("count = %u\n", i);
+
+      printf("m = ");
+      for(j = 0; j < mlen; ++j)
+        printf("%02x", m[j]);
+      printf("\n");
+    }
 
     crypto_sign_keypair(pk, sk);
-    shake256(buf, 32, pk, CRYPTO_PUBLICKEYBYTES);
-    printf("pk = ");
-    for(j = 0; j < 32; ++j)
-      printf("%02x", buf[j]);
-    printf("\n");
-    shake256(buf, 32, sk, CRYPTO_SECRETKEYBYTES);
-    printf("sk = ");
-    for(j = 0; j < 32; ++j)
-      printf("%02x", buf[j]);
-    printf("\n");
+    if(verbose) {
+      shake256(buf, 32, pk, CRYPTO_PUBLICKEYBYTES);
+      printf("pk = ");
+      for(j = 0; j < 32; ++j)
+        printf("%02x", buf[j]);
+      printf("\n");
+      shake256(buf, 32, sk, CRYPTO_SECRETKEYBYTES);
+      printf("sk = ");
+      for(j = 0; j < 32; ++j)
+        printf("%02x", buf[j]);
+      printf("\n");
+    }
 
-    crypto_sign_signature(sig, &siglen, m, MLEN, ctx, CTXLEN, sk);
-    shake256(buf, 32, sig, CRYPTO_BYTES);
-    printf("sig = ");
-    for(j = 0; j < 32; ++j)
-      printf("%02x", buf[j]);
-    printf("\n");
+    crypto_sign_signature(sig, &siglen, m, mlen, ctx, CTXLEN, sk);
+    if(verbose) {
+      shake256(buf, 32, sig, CRYPTO_BYTES);
+      printf("sig = ");
+      for(j = 0; j < 32; ++j)
+        printf("%02x", buf[j]);
+      printf("\n");
+    }
 
-    if(crypto_sign_verify(sig, siglen, m, MLEN, ctx, CTXLEN, pk))
+    if(crypto_sign_verify(sig, siglen, m, mlen, ctx, CTXLEN, pk))
       fprintf(stderr,"Signature verification failed!\n");
 
     randombytes(seed, sizeof(seed));
-    printf("seed = ");
-    for(j = 0; j < sizeof(seed); ++j)
-      printf("%02X", seed[j]);
-    printf("\n");
+    if(verbose) {
+      printf("seed = ");
+      for(j = 0; j < sizeof(seed); ++j)
+        printf("%02X", seed[j]);
+      printf("\n");
+    }
 
     polyvec_matrix_expand(mat, seed);
-    printf("A = ([");
-    for(j = 0; j < K; ++j) {
-      for(k = 0; k < L; ++k) {
-        for(l = 0; l < N; ++l) {
-          printf("%8d", mat[j].vec[k].coeffs[l]);
-          if(l < N-1) printf(", ");
-          else if(k < L-1) printf("], [");
-          else if(j < K-1) printf("];\n     [");
-          else printf("])\n");
+    if(verbose) {
+      printf("A = ([");
+      for(j = 0; j < K; ++j) {
+        for(k = 0; k < L; ++k) {
+          for(l = 0; l < N; ++l) {
+            printf("%8d", mat[j].vec[k].coeffs[l]);
+            if(l < N-1) printf(", ");
+            else if(k < L-1) printf("], [");
+            else if(j < K-1) printf("];\n     [");
+            else printf("])\n");
+          }
         }
       }
     }
@@ -100,13 +128,15 @@ int main(void) {
     if(polyvecl_chknorm(&s, ETA+1))
       fprintf(stderr, "ERROR in polyvecl_chknorm(&s ,ETA+1)!\n");
 
-    printf("s = ([");
-    for(j = 0; j < L; ++j) {
-      for(k = 0; k < N; ++k) {
-        printf("%3d", s.vec[j].coeffs[k]);
-        if(k < N-1) printf(", ");
-        else if(j < L-1) printf("],\n     [");
-        else printf("])\n");
+    if(verbose) {
+      printf("s = ([");
+      for(j = 0; j < L; ++j) {
+        for(k = 0; k < N; ++k) {
+          printf("%3d", s.vec[j].coeffs[k]);
+          if(k < N-1) printf(", ");
+          else if(j < L-1) printf("],\n     [");
+          else printf("])\n");
+        }
       }
     }
 
@@ -121,13 +151,15 @@ int main(void) {
     if(polyvecl_chknorm(&y, GAMMA1+1))
       fprintf(stderr, "ERROR in polyvecl_chknorm(&y, GAMMA1)!\n");
 
-    printf("y = ([");
-    for(j = 0; j < L; ++j) {
-      for(k = 0; k < N; ++k) {
-        printf("%8d", y.vec[j].coeffs[k]);
-        if(k < N-1) printf(", ");
-        else if(j < L-1) printf("],\n     [");
-        else printf("])\n");
+    if(verbose) {
+      printf("y = ([");
+      for(j = 0; j < L; ++j) {
+        for(k = 0; k < N; ++k) {
+          printf("%8d", y.vec[j].coeffs[k]);
+          if(k < N-1) printf(", ");
+          else if(j < L-1) printf("],\n     [");
+          else printf("])\n");
+        }
       }
     }
 
@@ -166,22 +198,24 @@ int main(void) {
     if(polyveck_chknorm(&w0, GAMMA2 + 1))
       fprintf(stderr, "ERROR in polyveck_chknorm(&w0, GAMMA2+1)!\n");
 
-    printf("w1 = ([");
-    for(j = 0; j < K; ++j) {
-      for(k = 0; k < N; ++k) {
-        printf("%2d", w1.vec[j].coeffs[k]);
-        if(k < N-1) printf(", ");
-        else if(j < K-1) printf("],\n      [");
-        else printf("])\n");
+    if(verbose) {
+      printf("w1 = ([");
+      for(j = 0; j < K; ++j) {
+        for(k = 0; k < N; ++k) {
+          printf("%2d", w1.vec[j].coeffs[k]);
+          if(k < N-1) printf(", ");
+          else if(j < K-1) printf("],\n      [");
+          else printf("])\n");
+        }
       }
-    }
-    printf("w0 = ([");
-    for(j = 0; j < K; ++j) {
-      for(k = 0; k < N; ++k) {
-        printf("%8d", w0.vec[j].coeffs[k]);
-        if(k < N-1) printf(", ");
-        else if(j < K-1) printf("],\n      [");
-        else printf("])\n");
+      printf("w0 = ([");
+      for(j = 0; j < K; ++j) {
+        for(k = 0; k < N; ++k) {
+          printf("%8d", w0.vec[j].coeffs[k]);
+          if(k < N-1) printf(", ");
+          else if(j < K-1) printf("],\n      [");
+          else printf("])\n");
+        }
       }
     }
 
@@ -211,31 +245,35 @@ int main(void) {
     if(polyveck_chknorm(&t0, (1U << (D-1)) + 1))
       fprintf(stderr, "ERROR in polyveck_chknorm(&t0, (1 << (D-1)) + 1)!\n");
 
-    printf("t1 = ([");
-    for(j = 0; j < K; ++j) {
-      for(k = 0; k < N; ++k) {
-        printf("%3d", t1.vec[j].coeffs[k]);
-        if(k < N-1) printf(", ");
-        else if(j < K-1) printf("],\n      [");
-        else printf("])\n");
+    if(verbose) {
+      printf("t1 = ([");
+      for(j = 0; j < K; ++j) {
+        for(k = 0; k < N; ++k) {
+          printf("%3d", t1.vec[j].coeffs[k]);
+          if(k < N-1) printf(", ");
+          else if(j < K-1) printf("],\n      [");
+          else printf("])\n");
+        }
       }
-    }
-    printf("t0 = ([");
-    for(j = 0; j < K; ++j) {
-      for(k = 0; k < N; ++k) {
-        printf("%5d", t0.vec[j].coeffs[k]);
-        if(k < N-1) printf(", ");
-        else if(j < K-1) printf("],\n      [");
-        else printf("])\n");
+      printf("t0 = ([");
+      for(j = 0; j < K; ++j) {
+        for(k = 0; k < N; ++k) {
+          printf("%5d", t0.vec[j].coeffs[k]);
+          if(k < N-1) printf(", ");
+          else if(j < K-1) printf("],\n      [");
+          else printf("])\n");
+        }
       }
     }
 
     poly_challenge(&c, seed);
-    printf("c = [");
-    for(j = 0; j < N; ++j) {
-      printf("%2d", c.coeffs[j]);
-      if(j < N-1) printf(", ");
-      else printf("]\n");
+    if(verbose) {
+      printf("c = [");
+      for(j = 0; j < N; ++j) {
+        printf("%2d", c.coeffs[j]);
+        if(j < N-1) printf(", ");
+        else printf("]\n");
+      }
     }
 
     polyveck_make_hint(&h, &w0, &w1);
@@ -244,7 +282,8 @@ int main(void) {
     if(memcmp(&h,&w,sizeof(h)))
       fprintf(stderr, "ERROR in (un)pack_sig!\n");
 
-    printf("\n");
+    if(verbose)
+      printf("\n");
   }
 
   return 0;
